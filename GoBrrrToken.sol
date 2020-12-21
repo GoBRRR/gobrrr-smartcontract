@@ -337,7 +337,7 @@ contract GoBrrrToken is Context, IERC20, Ownable {
     string private constant _symbol = "BRRR";
     uint256 private constant _decimals = 18;
 
-    uint256 private _totalSupply = 121 * (uint256(10) ** _decimals);
+    uint256 private _totalSupply = 111 * (uint256(10) ** _decimals);
     
     uint256 public transBurnrate = 3;//0.03%
 

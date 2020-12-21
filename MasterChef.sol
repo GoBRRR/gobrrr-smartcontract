@@ -645,7 +645,7 @@ contract GoBrrrToken is Context, IERC20, Ownable {
     string private constant _symbol = "BRRR";
     uint256 private constant _decimals = 18;
 
-    uint256 private _totalSupply = 121 * (uint256(10) ** _decimals);
+    uint256 private _totalSupply = 111 * (uint256(10) ** _decimals);
     
     uint256 public transBurnrate = 3;//0.03%
 
@@ -773,10 +773,10 @@ contract GoBrrrToken is Context, IERC20, Ownable {
 }
 
 
-// MasterChef is the master of Crops. He can make Crops and he is a fair guy.
+// MasterChef is the master of Brrr. He can make Brrr and he is a fair guy.
 //
 // Note that it's ownable and the owner wields tremendous power. The ownership
-// will be transferred to a governance smart contract once CROPS is sufficiently
+// will be transferred to a governance smart contract once BRRR is sufficiently
 // distributed and the community can show to govern itself.
 //
 // Have fun reading it. Hopefully it's bug-free. God bless.
@@ -789,13 +789,13 @@ contract MasterChef is Ownable {
         uint256 amount;     // How many LP tokens the user has provided.
         uint256 rewardDebt; // Reward debt. See explanation below.
         //
-        // We do some fancy math here. Basically, any point in time, the amount of CROPSs
+        // We do some fancy math here. Basically, any point in time, the amount of BRRRs
         // entitled to a user but is pending to be distributed is:
         //
-        //   pending reward = (user.amount * pool.accCropsPerShare) - user.rewardDebt
+        //   pending reward = (user.amount * pool.accBrrrPerShare) - user.rewardDebt
         //
         // Whenever a user deposits or withdraws LP tokens to a pool. Here's what happens:
-        //   1. The pool's `accCropsPerShare` (and `lastRewardBlock`) gets updated.
+        //   1. The pool's `accBrrrPerShare` (and `lastRewardBlock`) gets updated.
         //   2. User receives the pending reward sent to his/her address.
         //   3. User's `amount` gets updated.
         //   4. User's `rewardDebt` gets updated.
@@ -804,20 +804,20 @@ contract MasterChef is Ownable {
     // Info of each pool.
     struct PoolInfo {
         IERC20 lpToken;           // Address of LP token contract.
-        uint256 allocPoint;       // How many allocation points assigned to this pool. CROPSs to distribute per block.
-        uint256 lastRewardBlock;  // Last block number that CROPSs distribution occurs.
-        uint256 accCropsPerShare; // Accumulated CROPSs per share, times 1e12. See below.
+        uint256 allocPoint;       // How many allocation points assigned to this pool. BRRRs to distribute per block.
+        uint256 lastRewardBlock;  // Last block number that BRRRs distribution occurs.
+        uint256 accBrrrPerShare; // Accumulated BRRRs per share, times 1e12. See below.
     }
 
-    // The CROPS TOKEN!
-    GoBrrrToken public crops;
+    // The BRRR TOKEN!
+    GoBrrrToken public brrr;
     // Dev address.
     address public devaddr;
-    // Block number when bonus CROPS period ends.
+    // Block number when bonus BRRR period ends.
     uint256 public bonusEndBlock;
-    // CROPS tokens created per block.
-    uint256 public cropsPerBlock;
-    // Bonus muliplier for early crops makers.
+    // BRRR tokens created per block.
+    uint256 public brrrPerBlock;
+    // Bonus muliplier for early brrr makers.
     uint256 public constant BONUS_MULTIPLIER = 10;
 
     // Info of each pool.
@@ -825,27 +825,32 @@ contract MasterChef is Ownable {
     // Info of each user that stakes LP tokens.
     mapping (uint256 => mapping (address => UserInfo)) public userInfo;
     // Total allocation poitns. Must be the sum of all allocation points in all pools.
-    uint256 public totalAllocPoint = 600;
-    // The block number when CROPS mining starts.
+    uint256 public totalAllocPoint = 0;
+    // The block number when BRRR mining starts.
     uint256 public startBlock;
     
     uint256 public teamrewardrate = 3;//3%->3/100
     
-
+    uint256 public withdrawlFee = 100;
+   
+    
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
+    event EthRewardAdded(address indexed user, uint256 ethReward);
+    event addpool(uint256 _allocPoint, IERC20 _lpToken);
+    event setpool(uint256 _pid, uint256 _allocPoint);
 
     constructor(
-        GoBrrrToken _crops,
+        GoBrrrToken _brrr,
         address _devaddr,
-        uint256 _cropsPerBlock,
+        uint256 _brrrPerBlock,
         uint256 _startBlock,
         uint256 _bonusEndBlock
     ) public {
-        crops = _crops;
+        brrr = _brrr;
         devaddr = _devaddr;
-        cropsPerBlock = _cropsPerBlock;
+        brrrPerBlock = _brrrPerBlock;
         bonusEndBlock = _bonusEndBlock;
         startBlock = _startBlock;
     }
@@ -853,7 +858,8 @@ contract MasterChef is Ownable {
     function poolLength() external view returns (uint256) {
         return poolInfo.length;
     }
-
+    
+    
     // Add a new lp to the pool. Can only be called by the owner.
     // XXX DO NOT add the same LP token more than once. Rewards will be messed up if you do.
     function add(uint256 _allocPoint, IERC20 _lpToken, bool _withUpdate) public onlyOwner {
@@ -866,17 +872,19 @@ contract MasterChef is Ownable {
             lpToken: _lpToken,
             allocPoint: _allocPoint,
             lastRewardBlock: lastRewardBlock,
-            accCropsPerShare: 0
+            accBrrrPerShare: 0
         }));
+        emit addpool(_allocPoint, _lpToken);
     }
 
-    // Update the given pool's CROPS allocation point. Can only be called by the owner.
+    // Update the given pool's BRRR allocation point. Can only be called by the owner.
     function set(uint256 _pid, uint256 _allocPoint, bool _withUpdate) public onlyOwner {
         if (_withUpdate) {
             massUpdatePools();
         }
         totalAllocPoint = totalAllocPoint.sub(poolInfo[_pid].allocPoint).add(_allocPoint);
         poolInfo[_pid].allocPoint = _allocPoint;
+        emit setpool(_pid, _allocPoint);
     }
 
     // Return reward multiplier over the given _from to _to block.
@@ -892,18 +900,18 @@ contract MasterChef is Ownable {
         }
     }
 
-    // View function to see pending CROPSs on frontend.
-    function pendingCrops(uint256 _pid, address _user) external view returns (uint256) {
+    // View function to see pending BRRRs on frontend.
+    function pendingBrrr(uint256 _pid, address _user) external view returns (uint256) {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_user];
-        uint256 accCropsPerShare = pool.accCropsPerShare;
+        uint256 accBrrrPerShare = pool.accBrrrPerShare;
         uint256 lpSupply = pool.lpToken.balanceOf(address(this));
         if (block.number > pool.lastRewardBlock && lpSupply != 0) {
             uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-            uint256 cropsReward = multiplier.mul(cropsPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-            accCropsPerShare = accCropsPerShare.add(cropsReward.mul(1e12).div(lpSupply));
+            uint256 brrrReward = multiplier.mul(brrrPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
+            accBrrrPerShare = accBrrrPerShare.add(brrrReward.mul(1e12).div(lpSupply));
         }
-        return user.amount.mul(accCropsPerShare).div(1e12).sub(user.rewardDebt);
+        return user.amount.mul(accBrrrPerShare).div(1e12).sub(user.rewardDebt);
     }
 
     // Update reward vairables for all pools. Be careful of gas spending!
@@ -926,27 +934,27 @@ contract MasterChef is Ownable {
             return;
         }
         uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-        uint256 cropsReward = multiplier.mul(cropsPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-        uint256 teamcropsReward = cropsReward.sub(cropsReward.mod(100));
-        teamcropsReward = teamcropsReward.div(100).mul(teamrewardrate);
-        crops.mint(devaddr, teamcropsReward);
-        crops.mint(address(this), cropsReward);
-        pool.accCropsPerShare = pool.accCropsPerShare.add(cropsReward.mul(1e12).div(lpSupply));
+        uint256 brrrReward = multiplier.mul(brrrPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
+        uint256 teambrrrReward = brrrReward.sub(brrrReward.mod(100));
+        teambrrrReward = teambrrrReward.div(100).mul(teamrewardrate);
+        brrr.mint(devaddr, teambrrrReward);
+        brrr.mint(address(this), brrrReward);
+        pool.accBrrrPerShare = pool.accBrrrPerShare.add(brrrReward.mul(1e12).div(lpSupply));
         pool.lastRewardBlock = block.number;
     }
 
-    // Deposit LP tokens to MasterChef for CROPS allocation.
+    // Deposit LP tokens to MasterChef for BRRR allocation.
     function deposit(uint256 _pid, uint256 _amount) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
         if (user.amount > 0) {
-            uint256 pending = user.amount.mul(pool.accCropsPerShare).div(1e12).sub(user.rewardDebt);
-            safeCropsTransfer(msg.sender, pending);
+            uint256 pending = user.amount.mul(pool.accBrrrPerShare).div(1e12).sub(user.rewardDebt);
+            safeBrrrTransfer(msg.sender, pending);
         }
         pool.lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);
         user.amount = user.amount.add(_amount);
-        user.rewardDebt = user.amount.mul(pool.accCropsPerShare).div(1e12);
+        user.rewardDebt = user.amount.mul(pool.accBrrrPerShare).div(1e12);
         emit Deposit(msg.sender, _pid, _amount);
     }
 
@@ -956,16 +964,23 @@ contract MasterChef is Ownable {
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= _amount, "withdraw: not good");
         updatePool(_pid);
-        uint256 pending = user.amount.mul(pool.accCropsPerShare).div(1e12).sub(user.rewardDebt);
-        safeCropsTransfer(msg.sender, pending);
+        uint256 pending = user.amount.mul(pool.accBrrrPerShare).div(1e12).sub(user.rewardDebt);
+        safeBrrrTransfer(msg.sender, pending);
         user.amount = user.amount.sub(_amount);
-        user.rewardDebt = user.amount.mul(pool.accCropsPerShare).div(1e12);
+        user.rewardDebt = user.amount.mul(pool.accBrrrPerShare).div(1e12);
         
         //test
-        pool.lpToken.safeTransfer(address(msg.sender), _amount.div(10).mul(9));
-        pool.lpToken.safeTransfer(address(this), _amount.div(10));
-        //
-        //pool.lpToken.safeTransfer(address(msg.sender), _amount);
+        uint256 withdrawFeeAmount = _amount.mul(withdrawlFee).div(1000);
+        uint256 remainingUserAmount = _amount.sub(withdrawFeeAmount);
+        
+        // 50% of the LP tokens kept by the unstaking fee will be locked forever in the BRRR contract, the other 50% will be sent to team.
+        uint256 lpTokensToLock = withdrawFeeAmount.div(2);
+        uint256 lpTokensToTeam = lpTokensToLock;
+        
+        pool.lpToken.safeTransfer(address(msg.sender), remainingUserAmount);
+        pool.lpToken.safeTransfer(devaddr, lpTokensToTeam);
+        pool.lpToken.safeTransfer(address(this), lpTokensToLock);
+        
         emit Withdraw(msg.sender, _pid, _amount);
     }
 
@@ -979,13 +994,13 @@ contract MasterChef is Ownable {
         user.rewardDebt = 0;
     }
 
-    // Safe crops transfer function, just in case if rounding error causes pool to not have enough CROPSs.
-    function safeCropsTransfer(address _to, uint256 _amount) internal {
-        uint256 cropsBal = crops.balanceOf(address(this));
-        if (_amount > cropsBal) {
-            crops.transfer(_to, cropsBal);
+    // Safe brrr transfer function, just in case if rounding error causes pool to not have enough BRRRs.
+    function safeBrrrTransfer(address _to, uint256 _amount) internal {
+        uint256 brrrBal = brrr.balanceOf(address(this));
+        if (_amount > brrrBal) {
+            brrr.transfer(_to, brrrBal);
         } else {
-            crops.transfer(_to, _amount);
+            brrr.transfer(_to, _amount);
         }
     }
 
@@ -998,11 +1013,11 @@ contract MasterChef is Ownable {
     
     //change the TPB(tokensPerBlock)
     function changetokensPerBlock(uint256 _newtokensPerBlock) public onlyOwner {
-        cropsPerBlock = _newtokensPerBlock;
+        brrrPerBlock = _newtokensPerBlock;
     }
     //change the transBurnrate
     function changetransBurnrate(uint256 _newtransBurnrate) public onlyOwner {
-        crops.changetransBurnrate(_newtransBurnrate);
+        brrr.changetransBurnrate(_newtransBurnrate);
     }
     //change the transBurnrate
     function changeteamrewardrate(uint256 _newteamrewardrate) public onlyOwner {
