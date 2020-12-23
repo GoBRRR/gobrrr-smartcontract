@@ -1056,13 +1056,13 @@ contract OwnerChef is Ownable {
     
     //
     function changeTPB(uint256 _newTPB) public onlyOwner {
-        require(_newTPB <= maxburnrate, "too high value");
+        require(_newTPB <= maxtokenperblock, "too high value");
         masterchef.changetokensPerBlock(_newTPB);
         emit changeTPBevent(_newTPB);
     }
     //
     function changeTBR(uint256 _newTBR) public onlyOwner {
-        require(_newTBR <= maxtokenperblock, "too high value");
+        require(_newTBR <= maxburnrate, "too high value");
         masterchef.changetransBurnrate(_newTBR);
         emit changeTBRevent(_newTBR);
     }
